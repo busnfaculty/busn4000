@@ -25,13 +25,14 @@ regprint <- function(model, conf_level = 95, digits = NULL,
   lb_name <- sprintf("%d%% CI LB", conf_level)
   ub_name <- sprintf("%d%% CI UB", conf_level)
 
-  # ---- formatting helpers (thousands separators + digits) ----
+  # ---- formatting helpers (with thousands separators) ----
   k_p  <- if (is.null(digits)) 4L else digits
   k_r2 <- if (is.null(digits)) 4L else digits
   k_oth<- if (is.null(digits)) 3L else digits
 
   fmt_fix <- function(x, k) {
-    ifelse(is.na(x), "NA", formatC(x, format = "f", digits = k, big.mark = ","))
+    ifelse(is.na(x), "NA",
+           formatC(x, format = "f", digits = k, big.mark = ","))
   }
   fmt4  <- function(x) fmt_fix(x, k_r2)   # Multiple R, R^2, Adj R^2
   fmt3  <- function(x) fmt_fix(x, k_oth)  # Everything else
@@ -134,17 +135,26 @@ regprint <- function(model, conf_level = 95, digits = NULL,
   cat(sprintf("Linear Regression Model: %s\n", obj_name))
   cat(sprintf("Dependent Variable: %s\n\n", y_name))
 
-  # Regression stats (fine with fixed width—values ≤ 1 except SE)
+  # Regression Statistics (dynamic widths; right-justified values)
   cat("Regression Statistics Table\n")
-  cat(sprintf("%-22s %8s\n", "Multiple R",        fmt4(multR)))
-  cat(sprintf("%-22s %8s\n", "R Square",          fmt4(r2)))
-  cat(sprintf("%-22s %8s\n", "Adjusted R Square", fmt4(adjr)))
-  cat(sprintf("%-22s %8s\n", "Standard Error",    fmt3(s_err)))
-  cat(sprintf("%-22s %8s\n", "N Obs Read",        fmt_int(n_read)))
-  cat(sprintf("%-22s %8s\n", "N Obs Missing",     fmt_int(n_miss)))
-  cat(sprintf("%-22s %8s\n\n","N Obs Used",       fmt_int(n_used)))
+  rs_names <- c("Multiple R","R Square","Adjusted R Square",
+                "Standard Error","N Obs Read","N Obs Missing","N Obs Used")
+  rs_vals  <- c(
+    fmt4(multR),
+    fmt4(r2),
+    fmt4(adjr),
+    fmt3(s_err),
+    fmt_int(n_read),
+    fmt_int(n_miss),
+    fmt_int(n_used)
+  )
+  lw <- max(nchar(rs_names))
+  vw <- max(nchar(rs_vals))
+  rs_fmt <- paste0("%-", lw, "s %", vw, "s\n")
+  for (i in seq_along(rs_names)) cat(sprintf(rs_fmt, rs_names[i], rs_vals[i]))
+  cat("\n")
 
-  # ---- ANOVA table with dynamic widths (right-justified numbers) ----
+  # ANOVA (dynamic widths; right-justified numbers)
   cat("ANOVA Table\n")
   a_hdr <- c("Source","df","SS","MS","F-Statistic","p-value")
   a_src <- c("Regression","Residual","Total")
@@ -153,15 +163,10 @@ regprint <- function(model, conf_level = 95, digits = NULL,
   a_ms  <- c(fmt3(ms_reg), fmt3(ms_res), "")
   a_F   <- c(fmt3(fstat), "", "")
   a_p   <- c(fmt_p(p_f), "", "")
-
   a_cols <- list(a_src, a_df, a_ss, a_ms, a_F, a_p)
   a_w <- integer(length(a_cols))
-  for (i in seq_along(a_cols)) {
-    a_w[i] <- max(nchar(a_hdr[i]), max(nchar(a_cols[[i]]), na.rm = TRUE))
-  }
-  a_fmt <- paste0("%-", a_w[1], "s ",
-                  paste(sprintf("%%%ds", a_w[-1]), collapse = " "),
-                  "\n")
+  for (i in seq_along(a_cols)) a_w[i] <- max(nchar(a_hdr[i]), max(nchar(a_cols[[i]]), na.rm = TRUE))
+  a_fmt <- paste0("%-", a_w[1], "s ", paste(sprintf("%%%ds", a_w[-1]), collapse = " "), "\n")
   cat(do.call(sprintf, c(a_fmt, as.list(a_hdr))))
   for (i in seq_along(a_src)) {
     row <- list(a_src[i], a_df[i], a_ss[i], a_ms[i], a_F[i], a_p[i])
@@ -169,7 +174,7 @@ regprint <- function(model, conf_level = 95, digits = NULL,
   }
   cat("\n")
 
-  # ---- Coefficients table with dynamic widths (right-justified numbers) ----
+  # Coefficients (dynamic widths; right-justified numbers)
   cat("Coefficients Table\n")
   c_hdr <- c("Variables","Coefficients","Standard Error","t-test","p-value",
              paste0(conf_level, "% CI LB"), paste0(conf_level, "% CI UB"))
@@ -191,12 +196,8 @@ regprint <- function(model, conf_level = 95, digits = NULL,
   c_cols <- c(c_cols, list(c_vif))
 
   c_w <- integer(length(c_cols))
-  for (i in seq_along(c_cols)) {
-    c_w[i] <- max(nchar(c_hdr[i]), max(nchar(c_cols[[i]]), na.rm = TRUE))
-  }
-  c_fmt <- paste0("%-", c_w[1], "s ",
-                  paste(sprintf("%%%ds", c_w[-1]), collapse = " "),
-                  "\n")
+  for (i in seq_along(c_cols)) c_w[i] <- max(nchar(c_hdr[i]), max(nchar(c_cols[[i]]), na.rm = TRUE))
+  c_fmt <- paste0("%-", c_w[1], "s ", paste(sprintf("%%%ds", c_w[-1]), collapse = " "), "\n")
   cat(do.call(sprintf, c(c_fmt, as.list(c_hdr))))
   for (i in seq_len(nrow(ctab))) {
     row <- list(c_vars[i], c_coef[i], c_se[i], c_t[i], c_p[i], c_lb[i], c_ub[i])
