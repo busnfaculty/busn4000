@@ -25,7 +25,7 @@ regprint <- function(model, conf_level = 95, digits = NULL,
   lb_name <- sprintf("%d%% CI LB", conf_level)
   ub_name <- sprintf("%d%% CI UB", conf_level)
 
-  # ---- formatting helpers (add thousands separators) ----
+  # ---- formatting helpers (with thousands separators) ----
   k_p  <- if (is.null(digits)) 4L else digits
   k_r2 <- if (is.null(digits)) 4L else digits
   k_oth<- if (is.null(digits)) 3L else digits
@@ -96,8 +96,6 @@ regprint <- function(model, conf_level = 95, digits = NULL,
   )
   ctab[[lb_name]] <- ci[, 1]
   ctab[[ub_name]] <- ci[, 2]
-
-  # Tidy intercept label
   rownames(ctab) <- sub("^\\(Intercept\\)$", "Intercept", rownames(ctab))
 
   # ---- standardized betas ----
@@ -132,16 +130,16 @@ regprint <- function(model, conf_level = 95, digits = NULL,
   }
   ctab$VIF <- vif
 
-  # ---- printing ----
+  # ---- printing (no warnings, explicit formats) ----
   obj_name <- deparse(substitute(model))
   cat(sprintf("Linear Regression Model: %s\n", obj_name))
   cat(sprintf("Dependent Variable: %s\n\n", y_name))
 
   cat("Regression Statistics Table\n")
-  cat(sprintf("%-22s %8s\n", "Multiple R",        fmt4(multR)))   # <= 1
-  cat(sprintf("%-22s %8s\n", "R Square",          fmt4(r2)))      # <= 1
-  cat(sprintf("%-22s %8s\n", "Adjusted R Square", fmt4(adjr)))    # <= 1
-  cat(sprintf("%-22s %8s\n", "Standard Error",    fmt3(s_err)))   # may exceed 1
+  cat(sprintf("%-22s %8s\n", "Multiple R",        fmt4(multR)))
+  cat(sprintf("%-22s %8s\n", "R Square",          fmt4(r2)))
+  cat(sprintf("%-22s %8s\n", "Adjusted R Square", fmt4(adjr)))
+  cat(sprintf("%-22s %8s\n", "Standard Error",    fmt3(s_err)))
   cat(sprintf("%-22s %8s\n", "N Obs Read",        fmt_int(n_read)))
   cat(sprintf("%-22s %8s\n", "N Obs Missing",     fmt_int(n_miss)))
   cat(sprintf("%-22s %8s\n\n","N Obs Used",       fmt_int(n_used)))
@@ -157,29 +155,41 @@ regprint <- function(model, conf_level = 95, digits = NULL,
               "Total",      fmt_int(df_tot), fmt3(sst), "", "", ""))
 
   cat("Coefficients Table\n")
-  hdr <- c("Variables","Coefficients","Standard Error","t-test","p-value",
-           paste0(conf_level, "% CI LB"), paste0(conf_level, "% CI UB"))
-  if (isTRUE(std_beta)) hdr <- c(hdr, "Std. Beta")
-  hdr <- c(hdr, "VIF")
-  cat(do.call(sprintf, c(fmt="%-12s %12s %15s %10s %10s %12s %12s",
-                         if (isTRUE(std_beta)) list("%12s") else NULL,
-                         "%8s\n", as.list(hdr))))
+  if (isTRUE(std_beta)) {
+    cat(sprintf("%-12s %12s %15s %10s %10s %12s %12s %12s %8s\n",
+                "Variables","Coefficients","Standard Error","t-test","p-value",
+                paste0(conf_level, "% CI LB"), paste0(conf_level, "% CI UB"),
+                "Std. Beta","VIF"))
+  } else {
+    cat(sprintf("%-12s %12s %15s %10s %10s %12s %12s %8s\n",
+                "Variables","Coefficients","Standard Error","t-test","p-value",
+                paste0(conf_level, "% CI LB"), paste0(conf_level, "% CI UB"),
+                "VIF"))
+  }
 
   for (i in seq_len(nrow(ctab))) {
-    fields <- list(
-      rownames(ctab)[i],
-      fmt3(ctab$Coefficients[i]),
-      fmt3(ctab$`Standard Error`[i]),
-      fmt3(ctab$`t-test`[i]),
-      fmt_p(ctab$`p-value`[i]),
-      fmt3(ctab[[lb_name]][i]),
-      fmt3(ctab[[ub_name]][i])
-    )
-    if (isTRUE(std_beta)) fields <- c(fields, fmt3(ctab$`Std. Beta`[i]))
-    fields <- c(fields, ifelse(is.na(ctab$VIF[i]), "", fmt3(ctab$VIF[i])))
-    do.call(cat, list(do.call(sprintf, c(fmt="%-12s %12s %15s %10s %10s %12s %12s",
-                                         if (isTRUE(std_beta)) list("%12s") else NULL,
-                                         "%8s\n", fields))))
+    if (isTRUE(std_beta)) {
+      cat(sprintf("%-12s %12s %15s %10s %10s %12s %12s %12s %8s\n",
+                  rownames(ctab)[i],
+                  fmt3(ctab$Coefficients[i]),
+                  fmt3(ctab$`Standard Error`[i]),
+                  fmt3(ctab$`t-test`[i]),
+                  fmt_p(ctab$`p-value`[i]),
+                  fmt3(ctab[[lb_name]][i]),
+                  fmt3(ctab[[ub_name]][i]),
+                  ifelse(is.null(ctab$`Std. Beta`[i]) || is.na(ctab$`Std. Beta`[i]), "", fmt3(ctab$`Std. Beta`[i])),
+                  ifelse(is.na(ctab$VIF[i]), "", fmt3(ctab$VIF[i]))))
+    } else {
+      cat(sprintf("%-12s %12s %15s %10s %10s %12s %12s %8s\n",
+                  rownames(ctab)[i],
+                  fmt3(ctab$Coefficients[i]),
+                  fmt3(ctab$`Standard Error`[i]),
+                  fmt3(ctab$`t-test`[i]),
+                  fmt_p(ctab$`p-value`[i]),
+                  fmt3(ctab[[lb_name]][i]),
+                  fmt3(ctab[[ub_name]][i]),
+                  ifelse(is.na(ctab$VIF[i]), "", fmt3(ctab$VIF[i]))))
+    }
   }
 
   invisible(list(
