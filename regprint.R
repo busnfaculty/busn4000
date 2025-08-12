@@ -47,7 +47,7 @@ regprint <- function(model, conf_level = 95) {
   ctab[[ub_name]] <- ci[, 2]
 
   X  <- model.matrix(model)
-  Xp <- X[, colnames(X) != "(Intercept)", drop = FALSE]
+  Xp <- X[, colnames(X) != "Intercept", drop = FALSE]
   vif <- rep(NA_real_, nrow(ctab))
   if (ncol(Xp) == 1) {
     vif[match(colnames(Xp), rownames(ctab))] <- 1
