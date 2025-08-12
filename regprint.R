@@ -48,7 +48,7 @@ regprint <- function(model, conf_level = 95) {
 
   # ----- VIFs: EXCLUDE INTERCEPT -----
   X <- model.matrix(model)
-  pred_cols <- setdiff(colnames(X), "(Intercept)")   # only predictors
+  pred_cols <- setdiff(colnames(X), "Intercept")   # only predictors
   Xp <- if (length(pred_cols)) X[, pred_cols, drop = FALSE] else NULL
 
   vif <- rep(NA_real_, nrow(ctab))                   # default NA (incl. intercept)
