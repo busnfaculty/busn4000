@@ -1,4 +1,4 @@
-#BUSN 4000 - V.1.0.3 - SPR26
+#BUSN 4000 - V.1.0.4 - SPR26
 
 regprint <- function(model, conf_level = 95, digits = NULL,
                      robust = c("none","HC0","HC1","HC2","HC3","HC4","HC4m","HC5"),
@@ -31,8 +31,7 @@ regprint <- function(model, conf_level = 95, digits = NULL,
   k_oth<- if (is.null(digits)) 3L else digits
 
   fmt_fix <- function(x, k) {
-    ifelse(is.na(x), "NA",
-           formatC(x, format = "f", digits = k, big.mark = ","))
+    ifelse(is.na(x), "NA", formatC(x, format = "f", digits = k, big.mark = ","))
   }
   fmt4  <- function(x) fmt_fix(x, k_r2)   # Multiple R, R^2, Adj R^2
   fmt3  <- function(x) fmt_fix(x, k_oth)  # Everything else
@@ -130,31 +129,36 @@ regprint <- function(model, conf_level = 95, digits = NULL,
   }
   ctab$VIF <- vif
 
+  # small helper to build an auto-spaced format string (10% of each column width)
+  build_fmt <- function(widths) {
+    if (length(widths) == 1L) return(paste0("%", widths, "s\n"))
+    sp <- as.integer(pmax(1L, ceiling(0.10 * widths[-1])))
+    paste0("%-", widths[1], "s",
+           paste(mapply(function(s, w) paste0(strrep(" ", s), "%", w, "s"),
+                        sp, widths[-1]),
+                 collapse = ""),
+           "\n")
+  }
+
   # ---- printing ----
   obj_name <- deparse(substitute(model))
   cat(sprintf("Linear Regression Model: %s\n", obj_name))
   cat(sprintf("Dependent Variable: %s\n\n", y_name))
 
-  # Regression Statistics (dynamic widths; right-justified values)
+  # Regression Statistics (dynamic widths; right-justified; auto spacing)
   cat("Regression Statistics Table\n")
   rs_names <- c("Multiple R","R Square","Adjusted R Square",
                 "Standard Error","N Obs Read","N Obs Missing","N Obs Used")
   rs_vals  <- c(
-    fmt4(multR),
-    fmt4(r2),
-    fmt4(adjr),
-    fmt3(s_err),
-    fmt_int(n_read),
-    fmt_int(n_miss),
-    fmt_int(n_used)
+    fmt4(multR), fmt4(r2), fmt4(adjr),
+    fmt3(s_err), fmt_int(n_read), fmt_int(n_miss), fmt_int(n_used)
   )
-  lw <- max(nchar(rs_names))
-  vw <- max(nchar(rs_vals))
-  rs_fmt <- paste0("%-", lw, "s %", vw, "s\n")
+  rs_w <- c(max(nchar(rs_names)), max(nchar(rs_vals)))
+  rs_fmt <- build_fmt(rs_w)
   for (i in seq_along(rs_names)) cat(sprintf(rs_fmt, rs_names[i], rs_vals[i]))
   cat("\n")
 
-  # ANOVA (dynamic widths; right-justified numbers)
+  # ANOVA (dynamic widths; right-justified; auto spacing)
   cat("ANOVA Table\n")
   a_hdr <- c("Source","df","SS","MS","F-Statistic","p-value")
   a_src <- c("Regression","Residual","Total")
@@ -166,7 +170,7 @@ regprint <- function(model, conf_level = 95, digits = NULL,
   a_cols <- list(a_src, a_df, a_ss, a_ms, a_F, a_p)
   a_w <- integer(length(a_cols))
   for (i in seq_along(a_cols)) a_w[i] <- max(nchar(a_hdr[i]), max(nchar(a_cols[[i]]), na.rm = TRUE))
-  a_fmt <- paste0("%-", a_w[1], "s ", paste(sprintf("%%%ds", a_w[-1]), collapse = " "), "\n")
+  a_fmt <- build_fmt(a_w)
   cat(do.call(sprintf, c(a_fmt, as.list(a_hdr))))
   for (i in seq_along(a_src)) {
     row <- list(a_src[i], a_df[i], a_ss[i], a_ms[i], a_F[i], a_p[i])
@@ -174,7 +178,7 @@ regprint <- function(model, conf_level = 95, digits = NULL,
   }
   cat("\n")
 
-  # Coefficients (dynamic widths; right-justified numbers)
+  # Coefficients (dynamic widths; right-justified; auto spacing)
   cat("Coefficients Table\n")
   c_hdr <- c("Variables","Coefficients","Standard Error","t-test","p-value",
              paste0(conf_level, "% CI LB"), paste0(conf_level, "% CI UB"))
@@ -197,7 +201,7 @@ regprint <- function(model, conf_level = 95, digits = NULL,
 
   c_w <- integer(length(c_cols))
   for (i in seq_along(c_cols)) c_w[i] <- max(nchar(c_hdr[i]), max(nchar(c_cols[[i]]), na.rm = TRUE))
-  c_fmt <- paste0("%-", c_w[1], "s ", paste(sprintf("%%%ds", c_w[-1]), collapse = " "), "\n")
+  c_fmt <- build_fmt(c_w)
   cat(do.call(sprintf, c(c_fmt, as.list(c_hdr))))
   for (i in seq_len(nrow(ctab))) {
     row <- list(c_vars[i], c_coef[i], c_se[i], c_t[i], c_p[i], c_lb[i], c_ub[i])
