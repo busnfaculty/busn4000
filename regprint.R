@@ -1,4 +1,4 @@
-#BUSN 4000 - V.1.0.2 - SPR26
+#BUSN 4000 - V.1.0.3 - SPR26
 
 regprint <- function(model, conf_level = 95, digits = NULL,
                      robust = c("none","HC0","HC1","HC2","HC3","HC4","HC4m","HC5"),
@@ -25,14 +25,13 @@ regprint <- function(model, conf_level = 95, digits = NULL,
   lb_name <- sprintf("%d%% CI LB", conf_level)
   ub_name <- sprintf("%d%% CI UB", conf_level)
 
-  # ---- formatting helpers (with thousands separators) ----
+  # ---- formatting helpers (thousands separators + digits) ----
   k_p  <- if (is.null(digits)) 4L else digits
   k_r2 <- if (is.null(digits)) 4L else digits
   k_oth<- if (is.null(digits)) 3L else digits
 
   fmt_fix <- function(x, k) {
-    ifelse(is.na(x), "NA",
-           formatC(x, format = "f", digits = k, big.mark = ","))
+    ifelse(is.na(x), "NA", formatC(x, format = "f", digits = k, big.mark = ","))
   }
   fmt4  <- function(x) fmt_fix(x, k_r2)   # Multiple R, R^2, Adj R^2
   fmt3  <- function(x) fmt_fix(x, k_oth)  # Everything else
@@ -130,11 +129,12 @@ regprint <- function(model, conf_level = 95, digits = NULL,
   }
   ctab$VIF <- vif
 
-  # ---- printing (no warnings, explicit formats) ----
+  # ---- printing ----
   obj_name <- deparse(substitute(model))
   cat(sprintf("Linear Regression Model: %s\n", obj_name))
   cat(sprintf("Dependent Variable: %s\n\n", y_name))
 
+  # Regression stats (fine with fixed width—values ≤ 1 except SE)
   cat("Regression Statistics Table\n")
   cat(sprintf("%-22s %8s\n", "Multiple R",        fmt4(multR)))
   cat(sprintf("%-22s %8s\n", "R Square",          fmt4(r2)))
@@ -144,52 +144,65 @@ regprint <- function(model, conf_level = 95, digits = NULL,
   cat(sprintf("%-22s %8s\n", "N Obs Missing",     fmt_int(n_miss)))
   cat(sprintf("%-22s %8s\n\n","N Obs Used",       fmt_int(n_used)))
 
+  # ---- ANOVA table with dynamic widths (right-justified numbers) ----
   cat("ANOVA Table\n")
-  cat(sprintf("%-12s %6s %14s %14s %14s %10s\n",
-              "Source","df","SS","MS","F-Statistic","p-value"))
-  cat(sprintf("%-12s %6s %14s %14s %14s %10s\n",
-              "Regression", fmt_int(df_reg), fmt3(ssr), fmt3(ms_reg), fmt3(fstat), fmt_p(p_f)))
-  cat(sprintf("%-12s %6s %14s %14s %14s %10s\n",
-              "Residual",   fmt_int(df_res), fmt3(sse), fmt3(ms_res), "", ""))
-  cat(sprintf("%-12s %6s %14s %14s %14s %10s\n\n",
-              "Total",      fmt_int(df_tot), fmt3(sst), "", "", ""))
+  a_hdr <- c("Source","df","SS","MS","F-Statistic","p-value")
+  a_src <- c("Regression","Residual","Total")
+  a_df  <- c(fmt_int(df_reg), fmt_int(df_res), fmt_int(df_tot))
+  a_ss  <- c(fmt3(ssr), fmt3(sse), fmt3(sst))
+  a_ms  <- c(fmt3(ms_reg), fmt3(ms_res), "")
+  a_F   <- c(fmt3(fstat), "", "")
+  a_p   <- c(fmt_p(p_f), "", "")
 
-  cat("Coefficients Table\n")
-  if (isTRUE(std_beta)) {
-    cat(sprintf("%-12s %12s %15s %10s %10s %12s %12s %12s %8s\n",
-                "Variables","Coefficients","Standard Error","t-test","p-value",
-                paste0(conf_level, "% CI LB"), paste0(conf_level, "% CI UB"),
-                "Std. Beta","VIF"))
-  } else {
-    cat(sprintf("%-12s %12s %15s %10s %10s %12s %12s %8s\n",
-                "Variables","Coefficients","Standard Error","t-test","p-value",
-                paste0(conf_level, "% CI LB"), paste0(conf_level, "% CI UB"),
-                "VIF"))
+  a_cols <- list(a_src, a_df, a_ss, a_ms, a_F, a_p)
+  a_w <- integer(length(a_cols))
+  for (i in seq_along(a_cols)) {
+    a_w[i] <- max(nchar(a_hdr[i]), max(nchar(a_cols[[i]]), na.rm = TRUE))
   }
+  a_fmt <- paste0("%-", a_w[1], "s ",
+                  paste(sprintf("%%%ds", a_w[-1]), collapse = " "),
+                  "\n")
+  cat(do.call(sprintf, c(a_fmt, as.list(a_hdr))))
+  for (i in seq_along(a_src)) {
+    row <- list(a_src[i], a_df[i], a_ss[i], a_ms[i], a_F[i], a_p[i])
+    cat(do.call(sprintf, c(a_fmt, row)))
+  }
+  cat("\n")
 
+  # ---- Coefficients table with dynamic widths (right-justified numbers) ----
+  cat("Coefficients Table\n")
+  c_hdr <- c("Variables","Coefficients","Standard Error","t-test","p-value",
+             paste0(conf_level, "% CI LB"), paste0(conf_level, "% CI UB"))
+  if (isTRUE(std_beta)) c_hdr <- c(c_hdr, "Std. Beta")
+  c_hdr <- c(c_hdr, "VIF")
+
+  c_vars <- rownames(ctab)
+  c_coef <- fmt3(ctab$Coefficients)
+  c_se   <- fmt3(ctab$`Standard Error`)
+  c_t    <- fmt3(ctab$`t-test`)
+  c_p    <- fmt_p(ctab$`p-value`)
+  c_lb   <- fmt3(ctab[[lb_name]])
+  c_ub   <- fmt3(ctab[[ub_name]])
+  c_beta <- if (isTRUE(std_beta)) fmt3(ctab$`Std. Beta`) else NULL
+  c_vif  <- ifelse(is.na(ctab$VIF), "", fmt3(ctab$VIF))
+
+  c_cols <- list(c_vars, c_coef, c_se, c_t, c_p, c_lb, c_ub)
+  if (isTRUE(std_beta)) c_cols <- c(c_cols, list(c_beta))
+  c_cols <- c(c_cols, list(c_vif))
+
+  c_w <- integer(length(c_cols))
+  for (i in seq_along(c_cols)) {
+    c_w[i] <- max(nchar(c_hdr[i]), max(nchar(c_cols[[i]]), na.rm = TRUE))
+  }
+  c_fmt <- paste0("%-", c_w[1], "s ",
+                  paste(sprintf("%%%ds", c_w[-1]), collapse = " "),
+                  "\n")
+  cat(do.call(sprintf, c(c_fmt, as.list(c_hdr))))
   for (i in seq_len(nrow(ctab))) {
-    if (isTRUE(std_beta)) {
-      cat(sprintf("%-12s %12s %15s %10s %10s %12s %12s %12s %8s\n",
-                  rownames(ctab)[i],
-                  fmt3(ctab$Coefficients[i]),
-                  fmt3(ctab$`Standard Error`[i]),
-                  fmt3(ctab$`t-test`[i]),
-                  fmt_p(ctab$`p-value`[i]),
-                  fmt3(ctab[[lb_name]][i]),
-                  fmt3(ctab[[ub_name]][i]),
-                  ifelse(is.null(ctab$`Std. Beta`[i]) || is.na(ctab$`Std. Beta`[i]), "", fmt3(ctab$`Std. Beta`[i])),
-                  ifelse(is.na(ctab$VIF[i]), "", fmt3(ctab$VIF[i]))))
-    } else {
-      cat(sprintf("%-12s %12s %15s %10s %10s %12s %12s %8s\n",
-                  rownames(ctab)[i],
-                  fmt3(ctab$Coefficients[i]),
-                  fmt3(ctab$`Standard Error`[i]),
-                  fmt3(ctab$`t-test`[i]),
-                  fmt_p(ctab$`p-value`[i]),
-                  fmt3(ctab[[lb_name]][i]),
-                  fmt3(ctab[[ub_name]][i]),
-                  ifelse(is.na(ctab$VIF[i]), "", fmt3(ctab$VIF[i]))))
-    }
+    row <- list(c_vars[i], c_coef[i], c_se[i], c_t[i], c_p[i], c_lb[i], c_ub[i])
+    if (isTRUE(std_beta)) row <- c(row, c_beta[i])
+    row <- c(row, c_vif[i])
+    cat(do.call(sprintf, c(c_fmt, row)))
   }
 
   invisible(list(
