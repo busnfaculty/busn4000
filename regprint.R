@@ -46,20 +46,27 @@ regprint <- function(model, conf_level = 95) {
   ctab[[lb_name]] <- ci[, 1]
   ctab[[ub_name]] <- ci[, 2]
 
-  X  <- model.matrix(model)
-  Xp <- X[, colnames(X) != "Intercept", drop = FALSE]
-  vif <- rep(NA_real_, nrow(ctab))
-  if (ncol(Xp) == 1) {
-    vif[match(colnames(Xp), rownames(ctab))] <- 1
-  } else if (ncol(Xp) > 1) {
-    v <- numeric(ncol(Xp))
-    for (j in seq_len(ncol(Xp))) {
-      r2j <- summary(lm(Xp[, j] ~ Xp[, -j]))$r.squared
-      v[j] <- 1 / (1 - r2j)
+  # ----- VIFs: EXCLUDE INTERCEPT -----
+  X <- model.matrix(model)
+  pred_cols <- setdiff(colnames(X), "(Intercept)")   # only predictors
+  Xp <- if (length(pred_cols)) X[, pred_cols, drop = FALSE] else NULL
+
+  vif <- rep(NA_real_, nrow(ctab))                   # default NA (incl. intercept)
+  if (!is.null(Xp)) {
+    if (ncol(Xp) == 1L) {
+      # With a single predictor, VIF is 1
+      vif[match(colnames(Xp), rownames(ctab))] <- 1
+    } else if (ncol(Xp) > 1L) {
+      v <- numeric(ncol(Xp))
+      for (j in seq_len(ncol(Xp))) {
+        r2j <- summary(lm(Xp[, j] ~ Xp[, -j]))$r.squared
+        v[j] <- 1 / (1 - r2j)
+      }
+      vif[match(colnames(Xp), rownames(ctab))] <- v
     }
-    vif[match(colnames(Xp), rownames(ctab))] <- v
   }
   ctab$VIF <- vif
+  # -----------------------------------
 
   obj_name <- deparse(substitute(model))
   cat(sprintf("Linear Regression Model: %s\n", obj_name))
