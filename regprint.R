@@ -1,5 +1,6 @@
+#BUSN 4000 - V.1.0.0 - SPR26
+
 regprint <- function(model, conf_level = 95) {
-  # friendly error if not an lm
   if (!inherits(model, "lm")) {
     obj <- deparse(substitute(model))
     stop(sprintf(
@@ -7,7 +8,6 @@ regprint <- function(model, conf_level = 95) {
       obj
     ), call. = FALSE)
   }
-  # validate confidence level (1..99)
   if (!is.numeric(conf_level) || length(conf_level) != 1 || !is.finite(conf_level) ||
       conf_level < 1 || conf_level > 99) {
     stop("Error: 'conf_level' must be a single number between 1 and 99 (e.g., 90, 95).", call. = FALSE)
@@ -16,7 +16,6 @@ regprint <- function(model, conf_level = 95) {
   lb_name <- sprintf("%d%% CI LB", conf_level)
   ub_name <- sprintf("%d%% CI UB", conf_level)
 
-  # --- rest of the function unchanged ---
   y_name <- as.character(formula(model))[2]
   sm <- summary(model)
   fmt_num <- function(x, k = 4) sprintf(paste0("%.", k, "f"), x)
@@ -29,7 +28,7 @@ regprint <- function(model, conf_level = 95) {
   n_read <- n_used + n_miss
 
   y <- model.response(model.frame(model))
-  e <- resid(model); yhat <- fitted(model) # yhat not used, but kept for clarity
+  e <- resid(model)
   sse <- sum(e^2); sst <- sum((y - mean(y))^2); ssr <- sst - sse
 
   df_reg <- unname(sm$fstatistic["numdf"])
@@ -46,15 +45,17 @@ regprint <- function(model, conf_level = 95) {
   ctab[[lb_name]] <- ci[, 1]
   ctab[[ub_name]] <- ci[, 2]
 
-  # ----- VIFs: EXCLUDE INTERCEPT -----
+  # >>> Rename intercept row for display (remove parentheses)
+  rownames(ctab) <- sub("^\\(Intercept\\)$", "Intercept", rownames(ctab))
+
+  # ----- VIFs: exclude intercept -----
   X <- model.matrix(model)
-  pred_cols <- setdiff(colnames(X), "Intercept")   # only predictors
+  pred_cols <- setdiff(colnames(X), "(Intercept)")
   Xp <- if (length(pred_cols)) X[, pred_cols, drop = FALSE] else NULL
 
-  vif <- rep(NA_real_, nrow(ctab))                   # default NA (incl. intercept)
+  vif <- rep(NA_real_, nrow(ctab))  # remains NA for Intercept
   if (!is.null(Xp)) {
     if (ncol(Xp) == 1L) {
-      # With a single predictor, VIF is 1
       vif[match(colnames(Xp), rownames(ctab))] <- 1
     } else if (ncol(Xp) > 1L) {
       v <- numeric(ncol(Xp))
