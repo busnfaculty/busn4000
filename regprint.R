@@ -1,4 +1,4 @@
-regprint <- function(model) {
+regprint <- function(model, conf_level = 95) {
   # friendly error if not an lm
   if (!inherits(model, "lm")) {
     obj <- deparse(substitute(model))
@@ -7,6 +7,14 @@ regprint <- function(model) {
       obj
     ), call. = FALSE)
   }
+  # validate confidence level (1..99)
+  if (!is.numeric(conf_level) || length(conf_level) != 1 || !is.finite(conf_level) ||
+      conf_level < 1 || conf_level > 99) {
+    stop("Error: 'conf_level' must be a single number between 1 and 99 (e.g., 90, 95).", call. = FALSE)
+  }
+  level <- conf_level / 100
+  lb_name <- sprintf("%d%% CI LB", conf_level)
+  ub_name <- sprintf("%d%% CI UB", conf_level)
 
   # --- rest of the function unchanged ---
   y_name <- as.character(formula(model))[2]
@@ -33,8 +41,10 @@ regprint <- function(model) {
 
   ctab <- as.data.frame(sm$coefficients)
   names(ctab) <- c("Coefficients", "Standard Error", "t-test", "p-value")
-  ci <- confint(model)
-  ctab$`95% CI LB` <- ci[,1]; ctab$`95% CI UB` <- ci[,2]
+
+  ci <- confint(model, level = level)
+  ctab[[lb_name]] <- ci[, 1]
+  ctab[[ub_name]] <- ci[, 2]
 
   X  <- model.matrix(model)
   Xp <- X[, colnames(X) != "(Intercept)", drop = FALSE]
@@ -77,7 +87,8 @@ regprint <- function(model) {
   cat("Coefficients Table\n")
   cat(sprintf("%-12s %12s %15s %10s %10s %12s %12s %8s\n",
               "Variables","Coefficients","Standard Error",
-              "t-test","p-value","95% CI LB","95% CI UB","VIF"))
+              "t-test","p-value", paste0(conf_level, "% CI LB"),
+              paste0(conf_level, "% CI UB"), "VIF"))
   for (i in seq_len(nrow(ctab))) {
     cat(sprintf("%-12s %12s %15s %10s %10s %12s %12s %8s\n",
                 rownames(ctab)[i],
@@ -85,8 +96,8 @@ regprint <- function(model) {
                 sprintf("%.3f", ctab$`Standard Error`[i]),
                 sprintf("%.3f", ctab$`t-test`[i]),
                 fmt_p(ctab$`p-value`[i]),
-                sprintf("%.3f", ctab$`95% CI LB`[i]),
-                sprintf("%.3f", ctab$`95% CI UB`[i]),
+                sprintf("%.3f", ctab[[lb_name]][i]),
+                sprintf("%.3f", ctab[[ub_name]][i]),
                 ifelse(is.na(ctab$VIF[i]), "", sprintf("%.3f", ctab$VIF[i]))))
   }
   invisible(NULL)
