@@ -1,13 +1,13 @@
-#BUSN 4000 - V.1.0.1 - SPR26
+#BUSN 4000 - V.1.0.2 - SPR26
 
-regprint <- function(model, conf_level = 95, digits = NULL) {
-  # --- validations ---
+regprint <- function(model, conf_level = 95, digits = NULL,
+                     robust = c("none","HC0","HC1","HC2","HC3","HC4","HC4m","HC5"),
+                     std_beta = FALSE) {
+
+  # ---- validations ----
   if (!inherits(model, "lm")) {
     obj <- deparse(substitute(model))
-    stop(sprintf(
-      "Error: %s is not a lm object. regprint() requires you fit a linear model first using the lm() function and save it as an object.",
-      obj
-    ), call. = FALSE)
+    stop(sprintf("Error: %s is not a lm object. regprint() requires you fit a linear model first using the lm() function and save it as an object.", obj), call. = FALSE)
   }
   if (!is.numeric(conf_level) || length(conf_level) != 1 || !is.finite(conf_level) ||
       conf_level < 1 || conf_level > 99) {
@@ -19,28 +19,33 @@ regprint <- function(model, conf_level = 95, digits = NULL) {
       stop("Error: 'digits' must be a single nonnegative integer (e.g., 3, 4, 5).", call. = FALSE)
     }
   }
+  robust <- match.arg(robust)
 
   level <- conf_level / 100
   lb_name <- sprintf("%d%% CI LB", conf_level)
   ub_name <- sprintf("%d%% CI UB", conf_level)
 
-  # --- formatting helpers ---
-  # default behavior (NULL) preserves your current formatting;
-  # when digits is set, everything uses that many decimals.
+  # ---- formatting helpers (add thousands separators) ----
   k_p  <- if (is.null(digits)) 4L else digits
   k_r2 <- if (is.null(digits)) 4L else digits
   k_oth<- if (is.null(digits)) 3L else digits
 
-  fmt_k   <- function(x, k) sprintf(paste0("%.", k, "f"), x)
-  fmt4    <- function(x) fmt_k(x, k_r2)      # R², Adj R², Multiple R (preserve current)
-  fmt3    <- function(x) fmt_k(x, k_oth)     # Everything else by default
-  fmt_p   <- function(p) {
+  fmt_fix <- function(x, k) {
+    ifelse(is.na(x), "NA",
+           formatC(x, format = "f", digits = k, big.mark = ","))
+  }
+  fmt4  <- function(x) fmt_fix(x, k_r2)   # Multiple R, R^2, Adj R^2
+  fmt3  <- function(x) fmt_fix(x, k_oth)  # Everything else
+  fmt_p <- function(p) {
     thr <- 10^(-k_p)
-    below <- paste0("<", fmt_k(thr, k_p))
-    ifelse(p < thr, below, fmt_k(p, k_p))
+    below <- paste0("<", formatC(thr, format="f", digits=k_p, big.mark=""))
+    ifelse(p < thr, below, formatC(p, format="f", digits=k_p, big.mark=""))
+  }
+  fmt_int <- function(x) {
+    ifelse(is.na(x), "NA", formatC(as.integer(x), format = "d", big.mark = ","))
   }
 
-  # --- core calculations (unchanged) ---
+  # ---- core pieces ----
   y_name <- as.character(formula(model))[2]
   sm <- summary(model)
 
@@ -50,8 +55,9 @@ regprint <- function(model, conf_level = 95, digits = NULL) {
   n_miss <- if (is.null(model$na.action)) 0L else length(model$na.action)
   n_read <- n_used + n_miss
 
-  y <- model.response(model.frame(model))
-  e <- resid(model)
+  mf <- model.frame(model)
+  y  <- model.response(mf)
+  e  <- resid(model)
   sse <- sum(e^2); sst <- sum((y - mean(y))^2); ssr <- sst - sse
 
   df_reg <- unname(sm$fstatistic["numdf"])
@@ -61,26 +67,61 @@ regprint <- function(model, conf_level = 95, digits = NULL) {
   fstat  <- unname(sm$fstatistic["value"])
   p_f    <- pf(fstat, df_reg, df_res, lower.tail = FALSE)
 
-  ctab <- as.data.frame(sm$coefficients)
-  names(ctab) <- c("Coefficients", "Standard Error", "t-test", "p-value")
+  # ---- coefficients (classic vs robust) ----
+  coefs <- coef(model)
+  if (robust == "none") {
+    se    <- sm$coefficients[, "Std. Error"]
+    tvals <- sm$coefficients[, "t value"]
+    pvals <- sm$coefficients[, "Pr(>|t|)"]
+    ci    <- confint(model, level = level)
+  } else {
+    if (!requireNamespace("sandwich", quietly = TRUE)) {
+      stop("Robust SEs require package 'sandwich'. Install with install.packages('sandwich').", call. = FALSE)
+    }
+    V  <- sandwich::vcovHC(model, type = robust)
+    se <- sqrt(diag(V))
+    tvals <- coefs / se
+    pvals <- 2 * pt(abs(tvals), df = df_res, lower.tail = FALSE)
+    tcrit <- qt(1 - (1 - level)/2, df = df_res)
+    ci <- cbind(coefs - tcrit * se, coefs + tcrit * se)
+    colnames(ci) <- c("low","high")
+  }
 
-  ci <- confint(model, level = level)
+  ctab <- data.frame(
+    "Coefficients"    = coefs,
+    "Standard Error"  = se,
+    "t-test"          = tvals,
+    "p-value"         = pvals,
+    check.names = FALSE
+  )
   ctab[[lb_name]] <- ci[, 1]
   ctab[[ub_name]] <- ci[, 2]
 
-  # Display name for intercept
+  # Tidy intercept label
   rownames(ctab) <- sub("^\\(Intercept\\)$", "Intercept", rownames(ctab))
 
-  # ----- VIFs: exclude intercept -----
+  # ---- standardized betas ----
+  if (isTRUE(std_beta)) {
+    X <- model.matrix(model)
+    sdy <- stats::sd(y)
+    sdx <- apply(X, 2, stats::sd)
+    stdb <- rep(NA_real_, length(coefs))
+    idx <- which(colnames(X) != "(Intercept)")
+    if (length(idx)) stdb[idx] <- coefs[idx] * sdx[idx] / sdy
+    names(stdb) <- rownames(ctab)
+    ctab$`Std. Beta` <- stdb
+  }
+
+  # ---- VIFs (exclude intercept) ----
   X <- model.matrix(model)
-  pred_cols <- setdiff(colnames(X), "(Intercept)")       # predictors only
+  pred_cols <- setdiff(colnames(X), "(Intercept)")
   Xp <- if (length(pred_cols)) X[, pred_cols, drop = FALSE] else NULL
 
-  vif <- rep(NA_real_, nrow(ctab))                       # NA for Intercept
+  vif <- rep(NA_real_, nrow(ctab))  # NA for Intercept
   if (!is.null(Xp)) {
     if (ncol(Xp) == 1L) {
       vif[match(colnames(Xp), rownames(ctab))] <- 1
-    } else if (ncol(Xp) > 1L) {
+    } else {
       v <- numeric(ncol(Xp))
       for (j in seq_len(ncol(Xp))) {
         r2j <- summary(lm(Xp[, j] ~ Xp[, -j]))$r.squared
@@ -90,47 +131,75 @@ regprint <- function(model, conf_level = 95, digits = NULL) {
     }
   }
   ctab$VIF <- vif
-  # -----------------------------------
 
-  # --- printing ---
+  # ---- printing ----
   obj_name <- deparse(substitute(model))
   cat(sprintf("Linear Regression Model: %s\n", obj_name))
   cat(sprintf("Dependent Variable: %s\n\n", y_name))
 
   cat("Regression Statistics Table\n")
-  cat(sprintf("%-22s %8s\n", "Multiple R",        fmt4(multR)))
-  cat(sprintf("%-22s %8s\n", "R Square",          fmt4(r2)))
-  cat(sprintf("%-22s %8s\n", "Adjusted R Square", fmt4(adjr)))
-  cat(sprintf("%-22s %8s\n", "Standard Error",    fmt3(s_err)))
-  cat(sprintf("%-22s %8d\n", "N Obs Read",        n_read))
-  cat(sprintf("%-22s %8d\n", "N Obs Missing",     n_miss))
-  cat(sprintf("%-22s %8d\n\n","N Obs Used",       n_used))
+  cat(sprintf("%-22s %8s\n", "Multiple R",        fmt4(multR)))   # <= 1
+  cat(sprintf("%-22s %8s\n", "R Square",          fmt4(r2)))      # <= 1
+  cat(sprintf("%-22s %8s\n", "Adjusted R Square", fmt4(adjr)))    # <= 1
+  cat(sprintf("%-22s %8s\n", "Standard Error",    fmt3(s_err)))   # may exceed 1
+  cat(sprintf("%-22s %8s\n", "N Obs Read",        fmt_int(n_read)))
+  cat(sprintf("%-22s %8s\n", "N Obs Missing",     fmt_int(n_miss)))
+  cat(sprintf("%-22s %8s\n\n","N Obs Used",       fmt_int(n_used)))
 
   cat("ANOVA Table\n")
-  cat(sprintf("%-12s %6s %10s %10s %12s %10s\n",
+  cat(sprintf("%-12s %6s %14s %14s %14s %10s\n",
               "Source","df","SS","MS","F-Statistic","p-value"))
-  cat(sprintf("%-12s %6d %10s %10s %12s %10s\n",
-              "Regression", df_reg, fmt3(ssr), fmt3(ms_reg), fmt3(fstat), fmt_p(p_f)))
-  cat(sprintf("%-12s %6d %10s %10s %12s %10s\n",
-              "Residual",   df_res, fmt3(sse), fmt3(ms_res), "", ""))
-  cat(sprintf("%-12s %6d %10s %10s %12s %10s\n\n",
-              "Total",      df_tot, fmt3(sst), "", "", ""))
+  cat(sprintf("%-12s %6s %14s %14s %14s %10s\n",
+              "Regression", fmt_int(df_reg), fmt3(ssr), fmt3(ms_reg), fmt3(fstat), fmt_p(p_f)))
+  cat(sprintf("%-12s %6s %14s %14s %14s %10s\n",
+              "Residual",   fmt_int(df_res), fmt3(sse), fmt3(ms_res), "", ""))
+  cat(sprintf("%-12s %6s %14s %14s %14s %10s\n\n",
+              "Total",      fmt_int(df_tot), fmt3(sst), "", "", ""))
 
   cat("Coefficients Table\n")
-  cat(sprintf("%-12s %12s %15s %10s %10s %12s %12s %8s\n",
-              "Variables","Coefficients","Standard Error",
-              "t-test","p-value", paste0(conf_level, "% CI LB"),
-              paste0(conf_level, "% CI UB"), "VIF"))
+  hdr <- c("Variables","Coefficients","Standard Error","t-test","p-value",
+           paste0(conf_level, "% CI LB"), paste0(conf_level, "% CI UB"))
+  if (isTRUE(std_beta)) hdr <- c(hdr, "Std. Beta")
+  hdr <- c(hdr, "VIF")
+  cat(do.call(sprintf, c(fmt="%-12s %12s %15s %10s %10s %12s %12s",
+                         if (isTRUE(std_beta)) list("%12s") else NULL,
+                         "%8s\n", as.list(hdr))))
+
   for (i in seq_len(nrow(ctab))) {
-    cat(sprintf("%-12s %12s %15s %10s %10s %12s %12s %8s\n",
-                rownames(ctab)[i],
-                fmt3(ctab$Coefficients[i]),
-                fmt3(ctab$`Standard Error`[i]),
-                fmt3(ctab$`t-test`[i]),
-                fmt_p(ctab$`p-value`[i]),
-                fmt3(ctab[[lb_name]][i]),
-                fmt3(ctab[[ub_name]][i]),
-                ifelse(is.na(ctab$VIF[i]), "", fmt3(ctab$VIF[i]))))
+    fields <- list(
+      rownames(ctab)[i],
+      fmt3(ctab$Coefficients[i]),
+      fmt3(ctab$`Standard Error`[i]),
+      fmt3(ctab$`t-test`[i]),
+      fmt_p(ctab$`p-value`[i]),
+      fmt3(ctab[[lb_name]][i]),
+      fmt3(ctab[[ub_name]][i])
+    )
+    if (isTRUE(std_beta)) fields <- c(fields, fmt3(ctab$`Std. Beta`[i]))
+    fields <- c(fields, ifelse(is.na(ctab$VIF[i]), "", fmt3(ctab$VIF[i])))
+    do.call(cat, list(do.call(sprintf, c(fmt="%-12s %12s %15s %10s %10s %12s %12s",
+                                         if (isTRUE(std_beta)) list("%12s") else NULL,
+                                         "%8s\n", fields))))
   }
-  invisible(NULL)
+
+  invisible(list(
+    coefficients = ctab,
+    anova = data.frame(
+      Source = c("Regression","Residual","Total"),
+      df = c(df_reg, df_res, df_tot),
+      SS = c(ssr, sse, sst),
+      MS = c(ms_reg, ms_res, NA_real_),
+      `F-Statistic` = c(fstat, NA_real_, NA_real_),
+      `p-value` = c(p_f, NA_real_, NA_real_),
+      check.names = FALSE
+    ),
+    summary = list(
+      Multiple_R = multR, R_Square = r2, Adj_R_Square = adjr,
+      Standard_Error = s_err, N_Read = n_read, N_Missing = n_miss, N_Used = n_used
+    ),
+    robust = robust,
+    conf_level = conf_level,
+    digits = digits,
+    std_beta = std_beta
+  ))
 }
