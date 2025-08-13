@@ -1,4 +1,4 @@
-#BUSN 4000 - V.1.0.4 - SPR26
+#BUSN 4000 - V.1.0.5 - SPR26
 
 regprint <- function(model, conf_level = 95, digits = NULL,
                      robust = c("none","HC0","HC1","HC2","HC3","HC4","HC4m","HC5"),
@@ -25,14 +25,12 @@ regprint <- function(model, conf_level = 95, digits = NULL,
   lb_name <- sprintf("%d%% CI LB", conf_level)
   ub_name <- sprintf("%d%% CI UB", conf_level)
 
-  # ---- formatting helpers (with thousands separators) ----
+  # ---- formatting helpers (thousands separators) ----
   k_p  <- if (is.null(digits)) 4L else digits
   k_r2 <- if (is.null(digits)) 4L else digits
   k_oth<- if (is.null(digits)) 3L else digits
 
-  fmt_fix <- function(x, k) {
-    ifelse(is.na(x), "NA", formatC(x, format = "f", digits = k, big.mark = ","))
-  }
+  fmt_fix <- function(x, k) ifelse(is.na(x), "NA", formatC(x, format="f", digits=k, big.mark=","))
   fmt4  <- function(x) fmt_fix(x, k_r2)   # Multiple R, R^2, Adj R^2
   fmt3  <- function(x) fmt_fix(x, k_oth)  # Everything else
   fmt_p <- function(p) {
@@ -40,9 +38,7 @@ regprint <- function(model, conf_level = 95, digits = NULL,
     below <- paste0("<", formatC(thr, format="f", digits=k_p, big.mark=""))
     ifelse(p < thr, below, formatC(p, format="f", digits=k_p, big.mark=""))
   }
-  fmt_int <- function(x) {
-    ifelse(is.na(x), "NA", formatC(as.integer(x), format = "d", big.mark = ","))
-  }
+  fmt_int <- function(x) ifelse(is.na(x), "NA", formatC(as.integer(x), format="d", big.mark=","))
 
   # ---- core pieces ----
   y_name <- as.character(formula(model))[2]
@@ -129,14 +125,13 @@ regprint <- function(model, conf_level = 95, digits = NULL,
   }
   ctab$VIF <- vif
 
-  # small helper to build an auto-spaced format string (10% of each column width)
+  # helper: build format string with ≥10% spacing and a 3-space minimum
   build_fmt <- function(widths) {
     if (length(widths) == 1L) return(paste0("%", widths, "s\n"))
-    sp <- as.integer(pmax(1L, ceiling(0.10 * widths[-1])))
+    sp <- pmax(3L, ceiling(0.10 * widths[-1]))
     paste0("%-", widths[1], "s",
            paste(mapply(function(s, w) paste0(strrep(" ", s), "%", w, "s"),
-                        sp, widths[-1]),
-                 collapse = ""),
+                        sp, widths[-1]), collapse = ""),
            "\n")
   }
 
@@ -145,20 +140,18 @@ regprint <- function(model, conf_level = 95, digits = NULL,
   cat(sprintf("Linear Regression Model: %s\n", obj_name))
   cat(sprintf("Dependent Variable: %s\n\n", y_name))
 
-  # Regression Statistics (dynamic widths; right-justified; auto spacing)
+  # Regression Statistics
   cat("Regression Statistics Table\n")
   rs_names <- c("Multiple R","R Square","Adjusted R Square",
                 "Standard Error","N Obs Read","N Obs Missing","N Obs Used")
-  rs_vals  <- c(
-    fmt4(multR), fmt4(r2), fmt4(adjr),
-    fmt3(s_err), fmt_int(n_read), fmt_int(n_miss), fmt_int(n_used)
-  )
+  rs_vals  <- c(fmt4(multR), fmt4(r2), fmt4(adjr), fmt3(s_err),
+                fmt_int(n_read), fmt_int(n_miss), fmt_int(n_used))
   rs_w <- c(max(nchar(rs_names)), max(nchar(rs_vals)))
   rs_fmt <- build_fmt(rs_w)
   for (i in seq_along(rs_names)) cat(sprintf(rs_fmt, rs_names[i], rs_vals[i]))
   cat("\n")
 
-  # ANOVA (dynamic widths; right-justified; auto spacing)
+  # ANOVA
   cat("ANOVA Table\n")
   a_hdr <- c("Source","df","SS","MS","F-Statistic","p-value")
   a_src <- c("Regression","Residual","Total")
@@ -178,7 +171,7 @@ regprint <- function(model, conf_level = 95, digits = NULL,
   }
   cat("\n")
 
-  # Coefficients (dynamic widths; right-justified; auto spacing)
+  # Coefficients
   cat("Coefficients Table\n")
   c_hdr <- c("Variables","Coefficients","Standard Error","t-test","p-value",
              paste0(conf_level, "% CI LB"), paste0(conf_level, "% CI UB"))
