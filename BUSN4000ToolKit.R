@@ -24,9 +24,9 @@ sresid <- function(x) {
 logY_predict <- function(model,
                          newdata = NULL,
                          na.action = na.pass) {
-  # Check if model is a glm object
-  if (!inherits(model, "glm")) {
-    stop("The 'model' argument must be a glm object created with glm().")
+  # Check if model is an lm object
+  if (!inherits(model, "lm")) {
+    stop("The 'model' argument must be an lm object created with lm()")
   }
   
   # linear predictor on log scale: η̂ = Xβ̂
