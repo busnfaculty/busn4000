@@ -1,4 +1,4 @@
-Store_ID,Oprofit,FootTraffic,ShrinkLoss,StoreAge,TrainingHours,ParkingSpaces
+Store_ID,OProfit,FootTraffic,ShrinkLoss,StoreAge,TrainingHours,ParkingSpaces
 R407593,955.726,720.6,0.83,5,43.18,163
 R499941,252.835,80.0,1.35,13,8.78,123
 R222465,418.656,335.8,1.28,11,21.87,79
@@ -76,3 +76,4 @@ R079991,223.234,499.6,1.51,2,2.65,92
 R077136,450.688,625.2,1.04,13,18.95,174
 R873165,561.233,120.2,1.73,6,22.78,110
 R062498,197.095,80.0,0.84,18,2.00,118
+
