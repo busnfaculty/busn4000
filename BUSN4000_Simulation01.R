@@ -1,5 +1,5 @@
 # ==============================================================================
-# SamErrSim.R - Sampling Error Simulation Engine
+# SamErrSimV2.R - Sampling Error Simulation Engine (Version 2)
 # BUSN 4000 - University of Georgia
 # ==============================================================================
 # This script is sourced by the student-facing script. It expects these 
@@ -9,15 +9,19 @@
 #   - Filename : Name of the CSV file (hosted on GitHub)
 #   - ShowHist : (Optional) TRUE to display histograms, FALSE to skip
 #   - Lag      : (Optional) Seconds to pause between each sample result (default 0.3)
+#   - ShowCI   : (Optional) TRUE to display confidence intervals, FALSE to skip
+#   - CL       : (Optional) Confidence level as integer (default 95)
+#   - Capture  : (Optional) TRUE to show if CI captures population parameter
 # ==============================================================================
 
 # --- Setup -------------------------------------------------------------------
 
-Lag <- 0.5          # Seconds between each sample result (0 for instant)
-
 # Set defaults if not specified
 if (!exists("ShowHist")) ShowHist <- FALSE
 if (!exists("Lag")) Lag <- 0.3
+if (!exists("ShowCI")) ShowCI <- FALSE
+if (!exists("CL")) CL <- 95
+if (!exists("Capture")) Capture <- FALSE
 
 # Load data from GitHub
 url <- "https://raw.githubusercontent.com/busnfaculty/busn4000/main/"
@@ -34,6 +38,10 @@ if (N < 10) {
   warning("WARNING: Very small sample size. Results may be unstable.")
 }
 
+if (CL <= 0 | CL >= 100) {
+  stop("ERROR: Confidence level (CL) must be between 0 and 100 (e.g., 95)")
+}
+
 # --- Population Model --------------------------------------------------------
 
 PopModel <- lm(SALES ~ ADV + BONUS, data = PopData)
@@ -41,18 +49,46 @@ PopCoefs <- coef(PopModel)
 
 # --- Run Simulation ----------------------------------------------------------
 
-# Storage for results
+# Storage for coefficient results
 results <- matrix(NA, nrow = Niter, ncol = 3)
 colnames(results) <- c("Beta0", "Beta1_ADV", "Beta2_BONUS")
 
+# Storage for CI results (LB, UB for each coefficient, plus Capture if needed)
+# Columns: Beta0_LB, Beta0_UB, Beta1_LB, Beta1_UB, Beta2_LB, Beta2_UB
+CIresults <- matrix(NA, nrow = Niter, ncol = 6)
+colnames(CIresults) <- c("Beta0_LB", "Beta0_UB", "Beta1_LB", "Beta1_UB", "Beta2_LB", "Beta2_UB")
+
+# Storage for Capture results (Y/N for each coefficient)
+if (Capture) {
+  CaptureResults <- matrix(NA, nrow = Niter, ncol = 3)
+  colnames(CaptureResults) <- c("Beta0_Cap", "Beta1_Cap", "Beta2_Cap")
+}
+
 # Set seed for reproducibility (students get same results each run)
 set.seed(4000)
+
+# Calculate alpha and t critical value
+alpha <- 1 - CL/100
+df <- N - 3  # degrees of freedom for 3 coefficients (intercept + 2 predictors)
 
 # Draw samples and fit models
 for (i in 1:Niter) {
   samp <- PopData[sample(1:PopN, N, replace = FALSE), ]
   mod <- lm(SALES ~ ADV + BONUS, data = samp)
+  
+  # Store coefficients
   results[i, ] <- coef(mod)
+  
+  # Calculate CIs
+  ci <- confint(mod, level = CL/100)
+  CIresults[i, ] <- c(ci[1,1], ci[1,2], ci[2,1], ci[2,2], ci[3,1], ci[3,2])
+  
+  # Check if CIs capture population parameters
+  if (Capture) {
+    CaptureResults[i, 1] <- ifelse(PopCoefs[1] >= ci[1,1] & PopCoefs[1] <= ci[1,2], "Y", "N")
+    CaptureResults[i, 2] <- ifelse(PopCoefs[2] >= ci[2,1] & PopCoefs[2] <= ci[2,2], "Y", "N")
+    CaptureResults[i, 3] <- ifelse(PopCoefs[3] >= ci[3,1] & PopCoefs[3] <= ci[3,2], "Y", "N")
+  }
 }
 
 # --- Calculate Summary Statistics --------------------------------------------
@@ -121,6 +157,81 @@ cat("        The reported SEs are theoretical estimates based on model assumptio
 cat("        With many iterations, these values should be similar.\n")
 cat("\n")
 
+# --- Confidence Interval Output (Optional) -----------------------------------
+
+if (ShowCI) {
+  
+  cat("\n")
+  cat("================================================================================\n")
+  cat(sprintf("                    %d%% CONFIDENCE INTERVALS FOR SAMPLE ESTIMATES\n", CL))
+  cat("================================================================================\n")
+  cat("\n")
+  
+  # Header row
+  if (Capture) {
+    cat(sprintf("%-12s %3s %14s %14s %3s %14s %14s %3s %14s %14s %3s\n",
+                "", "CL", "Beta0", "", "Cap", "Beta1(ADV)", "", "Cap", "Beta2(BONUS)", "", "Cap"))
+  } else {
+    cat(sprintf("%-12s %3s %14s %14s %14s %14s %14s %14s\n",
+                "", "CL", "Beta0", "", "Beta1(ADV)", "", "Beta2(BONUS)", ""))
+  }
+  cat("================================================================================\n")
+  cat("\n")
+  
+  flush.console()
+  Sys.sleep(Lag)
+  
+  # Print each sample's CI
+  for (i in 1:Niter) {
+    
+    # Row 1: Point estimates (CL = 0)
+    cat(sprintf("%-12s %3d %8s %8.3f %3s %8.3f%-4s %3s %8.3f%-4s\n",
+                paste0("Sample #", i), 0, "y.hat =", results[i,1], "+", results[i,2], "ADV", "+", results[i,3], "BONUS"))
+    
+    # Row 2: CI bounds (CL = specified level)
+    if (Capture) {
+      cat(sprintf("%-12s %3d %8s (%7.2f, %7.2f) %1s  (%6.3f, %6.3f) %1s  (%6.3f, %6.3f) %1s\n",
+                  "", CL, "",
+                  CIresults[i,1], CIresults[i,2], CaptureResults[i,1],
+                  CIresults[i,3], CIresults[i,4], CaptureResults[i,2],
+                  CIresults[i,5], CIresults[i,6], CaptureResults[i,3]))
+    } else {
+      cat(sprintf("%-12s %3d %8s (%7.2f, %7.2f)    (%6.3f, %6.3f)    (%6.3f, %6.3f)\n",
+                  "", CL, "",
+                  CIresults[i,1], CIresults[i,2],
+                  CIresults[i,3], CIresults[i,4],
+                  CIresults[i,5], CIresults[i,6]))
+    }
+    
+    cat("\n")
+    flush.console()
+    if (i < Niter) Sys.sleep(Lag)
+  }
+  
+  cat("================================================================================\n")
+  
+  # Coverage summary (only if Capture = TRUE)
+  if (Capture) {
+    cat("\n")
+    cat("COVERAGE SUMMARY:\n")
+    cat("-----------------\n")
+    
+    cap0 <- sum(CaptureResults[,1] == "Y")
+    cap1 <- sum(CaptureResults[,2] == "Y")
+    cap2 <- sum(CaptureResults[,3] == "Y")
+    
+    cat(sprintf("  Beta0:       %d/%d (%5.1f%%) of %d%% CIs captured the population intercept\n", 
+                cap0, Niter, 100*cap0/Niter, CL))
+    cat(sprintf("  Beta1 (ADV): %d/%d (%5.1f%%) of %d%% CIs captured the population coefficient\n", 
+                cap1, Niter, 100*cap1/Niter, CL))
+    cat(sprintf("  Beta2 (BONUS): %d/%d (%5.1f%%) of %d%% CIs captured the population coefficient\n", 
+                cap2, Niter, 100*cap2/Niter, CL))
+    cat("\n")
+    cat(sprintf("  Expected coverage: %d%%\n", CL))
+    cat("\n")
+  }
+}
+
 # --- Histograms (Optional) ---------------------------------------------------
 
 if (ShowHist) {
@@ -185,11 +296,15 @@ if (ShowHist) {
 # --- Clean Up Environment ----------------------------------------------------
 # Remove intermediate objects but keep results available for student exploration
 
-rm(i, samp, mod, url)
+rm(i, samp, mod, url, alpha, df, ci)
 
 cat("================================================================================\n")
 cat("  Objects available for further exploration:\n")
-cat("    - PopData    : The full population dataset\n")
-cat("    - PopModel   : The population regression model (use summary(PopModel))\n")
-cat("    - results    : Matrix of all sample coefficients\n")
+cat("    - PopData      : The full population dataset\n")
+cat("    - PopModel     : The population regression model (use summary(PopModel))\n")
+cat("    - results      : Matrix of all sample coefficients\n")
+cat("    - CIresults    : Matrix of CI bounds (LB, UB for each coefficient)\n")
+if (Capture) {
+  cat("    - CaptureResults : Matrix of Y/N for whether each CI captured population parameter\n")
+}
 cat("================================================================================\n")
