@@ -163,19 +163,29 @@ if (ShowCI) {
   
   cat("\n")
   cat("================================================================================\n")
-  cat(sprintf("                    %d%% CONFIDENCE INTERVALS FOR SAMPLE ESTIMATES\n", CL))
+  cat(sprintf("                %d%% CONFIDENCE INTERVALS FOR SAMPLE ESTIMATES\n", CL))
   cat("================================================================================\n")
   cat("\n")
   
-  # Header row
+  # Column headers with optional Capture column
   if (Capture) {
-    cat(sprintf("%-12s %3s %14s %14s %3s %14s %14s %3s %14s %14s %3s\n",
-                "", "CL", "Beta0", "", "Cap", "Beta1(ADV)", "", "Cap", "Beta2(BONUS)", "", "Cap"))
+    cat(sprintf("%-14s %4s %18s %4s %18s %4s %18s %4s\n",
+                "", "CL", "Beta0", "Cap", "Beta1(ADV)", "Cap", "Beta2(BONUS)", "Cap"))
   } else {
-    cat(sprintf("%-12s %3s %14s %14s %14s %14s %14s %14s\n",
-                "", "CL", "Beta0", "", "Beta1(ADV)", "", "Beta2(BONUS)", ""))
+    cat(sprintf("%-14s %4s %18s %18s %18s\n",
+                "", "CL", "Beta0", "Beta1(ADV)", "Beta2(BONUS)"))
   }
-  cat("================================================================================\n")
+  cat("--------------------------------------------------------------------------------\n")
+  
+  # Population coefficients row for reference
+  if (Capture) {
+    cat(sprintf("%-14s %4s %18.3f %4s %18.3f %4s %18.3f %4s\n",
+                "Population", "", PopCoefs[1], "", PopCoefs[2], "", PopCoefs[3], ""))
+  } else {
+    cat(sprintf("%-14s %4s %18.3f %18.3f %18.3f\n",
+                "Population", "", PopCoefs[1], PopCoefs[2], PopCoefs[3]))
+  }
+  cat("--------------------------------------------------------------------------------\n")
   cat("\n")
   
   flush.console()
@@ -185,22 +195,27 @@ if (ShowCI) {
   for (i in 1:Niter) {
     
     # Row 1: Point estimates (CL = 0)
-    cat(sprintf("%-12s %3d %8s %8.3f %3s %8.3f%-4s %3s %8.3f%-4s\n",
-                paste0("Sample #", i), 0, "y.hat =", results[i,1], "+", results[i,2], "ADV", "+", results[i,3], "BONUS"))
+    if (Capture) {
+      cat(sprintf("%-14s %4d %18.3f %4s %18.3f %4s %18.3f %4s\n",
+                  paste0("Sample #", i), 0, results[i,1], "", results[i,2], "", results[i,3], ""))
+    } else {
+      cat(sprintf("%-14s %4d %18.3f %18.3f %18.3f\n",
+                  paste0("Sample #", i), 0, results[i,1], results[i,2], results[i,3]))
+    }
     
     # Row 2: CI bounds (CL = specified level)
     if (Capture) {
-      cat(sprintf("%-12s %3d %8s (%7.2f, %7.2f) %1s  (%6.3f, %6.3f) %1s  (%6.3f, %6.3f) %1s\n",
-                  "", CL, "",
-                  CIresults[i,1], CIresults[i,2], CaptureResults[i,1],
-                  CIresults[i,3], CIresults[i,4], CaptureResults[i,2],
-                  CIresults[i,5], CIresults[i,6], CaptureResults[i,3]))
+      cat(sprintf("%-14s %4d %18s %4s %18s %4s %18s %4s\n",
+                  "", CL,
+                  sprintf("(%8.2f,%7.2f)", CIresults[i,1], CIresults[i,2]), CaptureResults[i,1],
+                  sprintf("(%7.3f,%7.3f)", CIresults[i,3], CIresults[i,4]), CaptureResults[i,2],
+                  sprintf("(%7.3f,%7.3f)", CIresults[i,5], CIresults[i,6]), CaptureResults[i,3]))
     } else {
-      cat(sprintf("%-12s %3d %8s (%7.2f, %7.2f)    (%6.3f, %6.3f)    (%6.3f, %6.3f)\n",
-                  "", CL, "",
-                  CIresults[i,1], CIresults[i,2],
-                  CIresults[i,3], CIresults[i,4],
-                  CIresults[i,5], CIresults[i,6]))
+      cat(sprintf("%-14s %4d %18s %18s %18s\n",
+                  "", CL,
+                  sprintf("(%8.2f,%7.2f)", CIresults[i,1], CIresults[i,2]),
+                  sprintf("(%7.3f,%7.3f)", CIresults[i,3], CIresults[i,4]),
+                  sprintf("(%7.3f,%7.3f)", CIresults[i,5], CIresults[i,6])))
     }
     
     cat("\n")
@@ -220,11 +235,11 @@ if (ShowCI) {
     cap1 <- sum(CaptureResults[,2] == "Y")
     cap2 <- sum(CaptureResults[,3] == "Y")
     
-    cat(sprintf("  Beta0:       %d/%d (%5.1f%%) of %d%% CIs captured the population intercept\n", 
+    cat(sprintf("  Beta0:         %2d/%d (%5.1f%%) of %d%% CIs captured the population intercept\n", 
                 cap0, Niter, 100*cap0/Niter, CL))
-    cat(sprintf("  Beta1 (ADV): %d/%d (%5.1f%%) of %d%% CIs captured the population coefficient\n", 
+    cat(sprintf("  Beta1 (ADV):   %2d/%d (%5.1f%%) of %d%% CIs captured the population coefficient\n", 
                 cap1, Niter, 100*cap1/Niter, CL))
-    cat(sprintf("  Beta2 (BONUS): %d/%d (%5.1f%%) of %d%% CIs captured the population coefficient\n", 
+    cat(sprintf("  Beta2 (BONUS): %2d/%d (%5.1f%%) of %d%% CIs captured the population coefficient\n", 
                 cap2, Niter, 100*cap2/Niter, CL))
     cat("\n")
     cat(sprintf("  Expected coverage: %d%%\n", CL))
