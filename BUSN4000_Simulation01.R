@@ -65,7 +65,9 @@ if (Capture) {
 }
 
 # Set seed for reproducibility (students get same results each run)
-set.seed(4000)
+if (SEED==TRUE) { set.seed(4000) }
+
+
 
 # Calculate alpha and t critical value
 alpha <- 1 - CL/100
