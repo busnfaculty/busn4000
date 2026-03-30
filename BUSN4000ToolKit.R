@@ -1,5 +1,5 @@
 # BUSN 4000 Tool Kit
-# V1.02 - SPR 2026
+# V1.04 - 03/30/2026 - SPR 2026
 
 
 # ================================================================================
@@ -43,9 +43,12 @@ logY_predict <- function(model,
 # ================================================================================
 
 
+# resid_plot()
+# V3
+
 
 resid_plot <- function(model,
-                       resid_type = c("raw", "std"),
+                       resid_type = c("raw", "standardized", "studentized"),
                        pad = 0.05,
                        ynticks = NULL,
                        xnticks = NULL) {
@@ -96,7 +99,15 @@ resid_plot <- function(model,
 
   # --- data ---
   x <- fitted(model)
-  y <- if (resid_type == "raw") resid(model) else sresid(model)
+y <- if (resid_type == "raw") {
+  resid(model)
+} else if (resid_type == "standardized") {
+  sresid(model)
+} else if (resid_type == "studentized") {
+  rstudent(model)
+} else {
+  resid(model) # default fallback
+}
 
   # --- y ticks & limits (symmetric around 0) ---
   maxabs <- max(abs(y), na.rm = TRUE)
@@ -137,7 +148,15 @@ resid_plot <- function(model,
   }
 
   # --- plot ---
-  ylab <- if (resid_type == "raw") "Residuals" else "Standardized Residuals"
+ylab <- if (resid_type == "raw") {
+  "Residuals"
+} else if (resid_type == "standardized") {
+  "Standardized Residuals"
+} else if (resid_type == "studentized") {
+  "Studentized Deleted Residuals"
+} else {
+  "Residuals"  # default fallback
+}
 
   plot(
     x, y,
@@ -157,7 +176,6 @@ resid_plot <- function(model,
 }
 
 
-
 # ================================================================================
 # ================================================================================
 
@@ -167,7 +185,7 @@ resid_plot <- function(model,
 
 regprint <- function(model, CL = 95, digits = NULL,
                      robust = c("none","HC0","HC1","HC2","HC3","HC4","HC4m","HC5"),
-                     std_beta = FALSE, diag = FALSE, CC = 0.5) {
+                     std_beta = FALSE, diag = FALSE) {
 
   # ---- validations ----
   is_lm <- inherits(model, "lm") && !inherits(model, "glm")
@@ -560,7 +578,7 @@ regprint <- function(model, CL = 95, digits = NULL,
     # Get predictions and residuals
     yhat <- fitted(model)
     resids <- resid(model)
-    std_resids <- resid(model) / summary(model)$sigma
+    stu_resids <- rstudent(model)
     
     # Calculate leverage (hat values)
     X <- model.matrix(model)
@@ -578,7 +596,7 @@ regprint <- function(model, CL = 95, digits = NULL,
     
     # Build the predictions table
     p_hdr <- c("Observation Number", colnames(pred_data), y_name, 
-               "Predicted Values", "Residuals", "Standardized Residuals",
+               "Predicted Values", "Residuals", "Studentized Del Residuals",
                "Leverage", "Cook's D", "DFFITS")
     
     # Format values
@@ -591,7 +609,7 @@ regprint <- function(model, CL = 95, digits = NULL,
     p_y <- fmt3(y)
     p_yhat <- fmt3(yhat)
     p_resids <- fmt3(resids)
-    p_std_resids <- fmt3(std_resids)
+    p_std_resids <- fmt3(stu_resids)
     p_lev <- fmt3(lev)
     p_cooks <- fmt3(cooks)
     p_dffits <- fmt3(dffits_vals)
@@ -628,24 +646,7 @@ regprint <- function(model, CL = 95, digits = NULL,
     # Get observed values, predicted probabilities, and classifications
     obs_y <- model$y
     pred_prob <- fitted(model)
-    pred_class_numeric <- ifelse(pred_prob >= CC, 1, 0)
-    
-    # Get factor labels for display if Y is a factor
-    if (!is.null(model$data) && y_name %in% names(model$data)) {
-      y_orig <- model$data[[y_name]]
-    } else {
-      y_orig <- model.response(model.frame(model))
-    }
-    
-    if (is.factor(y_orig)) {
-      factor_levels <- levels(y_orig)
-      # Convert numeric 0/1 to factor labels for display
-      obs_y_display <- factor_levels[obs_y + 1]
-      pred_class_display <- factor_levels[pred_class_numeric + 1]
-    } else {
-      obs_y_display <- obs_y
-      pred_class_display <- pred_class_numeric
-    }
+    pred_class <- ifelse(pred_prob >= 0.5, 1, 0)
     
     # Confidence intervals for predicted probabilities
     pred_logit <- predict(model, type = "link", se.fit = TRUE)
@@ -694,15 +695,8 @@ regprint <- function(model, CL = 95, digits = NULL,
     # Format predictor columns
     pred_cols_fmt <- lapply(pred_data, function(col) fmt3(col))
     
-    # Format Y and predicted classifications (handles both numeric and factor)
-    if (is.factor(y_orig)) {
-      p_y <- as.character(obs_y_display)
-      p_class <- as.character(pred_class_display)
-    } else {
-      p_y <- fmt_int(obs_y_display)
-      p_class <- fmt_int(pred_class_display)
-    }
-    
+    p_y <- fmt_int(obs_y)
+    p_class <- fmt_int(pred_class)
     p_prob <- fmt3(pred_prob)
     p_ci_lb <- fmt3(ci_lower_prob)
     p_ci_ub <- fmt3(ci_upper_prob)
