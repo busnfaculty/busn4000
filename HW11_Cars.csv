@@ -1,0 +1,148 @@
+Name ,CITYMPG,WEIGHT,HP,TYPE
+Acura CL,19,3470,225,Truck
+Acura NSX,17,3155,290,Auto
+Acura RL,18,3920,225,Truck
+Acura RSX,25,2750,160,Service
+Acura TL,19,3495,225,Truck
+Aston Martin DB7 Vantage,11,4235,420,Auto
+Aston Martin Vanquish,12,4110,460,Truck
+Audi A4 Cabriolet,22,3250,170,Truck
+Audi A6,17,3515,220,Auto
+Audi A8,17,4070,310,Auto
+Audi TT,22,2920,180,Auto
+Bentley Arnage R,10,5700,400,Service
+Bentley Continental R,11,5400,420,Truck
+BMW Z4 Roadster,20,3100,184,Service
+BMW Z8,13,3495,394,Service
+BMW 3 series,23,2780,184,Auto
+BMW 5 series,20,3450,184,Truck
+BMW 7 series,18,4510,325,Service
+Buick Century,20,3355,175,Auto
+Buick LeSabre,20,3565,205,Truck
+Buick Park Avenue,20,3780,205,Auto
+Buick Regal,19,3460,200,Truck
+Cadillac CTS,18,3570,220,Truck
+Cadillac DeVille,18,3985,275,Auto
+Cadillac Seville,18,3990,275,Service
+Chevrolet Cavalier,24,2615,140,Auto
+Chevrolet Corvette,19,3245,350,Truck
+Chevrolet Impala,21,3310,180,Auto
+Chevrolet Malibu ,20,3105,170,Truck
+Chevrolet Monte Carlo,21,3340,180,Auto
+Dodge Intrepid,20,3470,200,Auto
+Dodge Neon,27,2580,132,Service
+Dodge Stratus Coupe,22,3065,147,Truck
+Dodge Stratus Sedan,20,3200,150,Truck
+Dodge Viper,11,3360,500,Auto
+Chrysler Concorde,20,3480,200,Service
+Chrysler PT Cruiser,20,3110,150,Service
+Chrysler Sebring Convertible,21,3395,150,Truck
+Chrysler Sebring Coupe,22,3065,147,Truck
+Chrysler Sebring Sedan,20,3200,150,Auto
+Chrysler 300M,18,3580,250,Truck
+Ferrari Enzo,12,3010,660,Truck
+Ferrari 360 Modena,10,3065,395,Auto
+Ferrari 360 Spider,10,3495,395,Service
+Ferrari 456M GT,11,3725,436,Service
+Ferrari 575M Maranelli,10,3815,515,Truck
+Ford Crown Victoria,18,4060,224,Service
+Ford Escort ZX2,26,2480,130,Service
+Ford Focus,28,2585,110,Truck
+Ford Mustang,20,3065,190,Auto
+Ford Taurus,20,3345,155,Auto
+Ford Thunderbird,17,3775,280,Service
+Honda Accord,26,3020,160,Service
+Honda Civic,33,2410,115,Service
+Honda Civic Hybrid,47,2660,85,Truck
+Honda Insight ,61,1850,67,Truck
+Honda S2000,20,2755,240,Service
+Hyundai Accent,28,2255,105,Service
+Hyundai Elantra,25,2955,140,Auto
+Hyundai Sonata,22,3180,149,Truck
+Hyundai Tiburon,23,2635,140,Service
+Hyundai XG 350,18,3650,194,Service
+Infiniti G35,19,3470,260,Truck
+Infiniti I35,19,3340,255,Auto
+Infiniti M45,17,3900,340,Service
+Infiniti Q45,17,4050,340,Truck
+Jaguar XJ8,17,3995,290,Auto
+Jaguar Vanden Plas,17,4005,290,Truck
+Jaguar XK8,17,3760,294,Truck
+Jaguar S-Type,17,3940,240,Service
+Jaguar X-Type,19,3430,194,Truck
+Kia Optima,21,3070,149,Service
+Kia Rio,30,2240,105,Auto
+Kia Spectra,25,2480,125,Truck
+Lamborghini Murcielago,9,4020,580,Truck
+Lexus ES300,21,3440,210,Service
+Lexus GS300,18,3645,220,Truck
+Lexus IS300,18,3255,215,Service
+Lexus LS430,18,3955,290,Service
+Lexus SC430,18,3840,300,Service
+Lotus Esprit V8,15,3045,350,Truck
+Lincoln LS,18,3675,232,Service
+Lincoln Town Car,17,4370,239,Auto
+Maserati Coupe,11,3600,390,Service
+Maserati Spyder,11,3790,390,Truck
+Mazda Miata,25,2300,142,Truck
+Mazda Protégé,29,2450,105,Auto
+Mazda 6,25,2800,160,Service
+Mercury Grand Marquis,17,4050,224,Truck
+Mercury Marauder,17,4195,302,Service
+Mercury Sable,20,3345,155,Truck
+Mini Cooper,26,2490,115,Service
+Mercedes-Bens C-Class,20,3360,168,Service
+Mercedes-Bens C230 Sports Coupe,20,3310,189,Auto
+Mercedes-Bens CLK,21,3500,215,Auto
+Mercedes-Bens CL/S Class,17,4130,275,Truck
+Mercedes-Bens E-Class,20,3625,221,Truck
+Mercedes-Bens SL,15,4045,302,Truck
+Mercedes-Bens SLK,23,2910,190,Service
+Mitsubishi Diamante,18,3440,210,Truck
+Mitsubishi Eclipse,23,2910,147,Truck
+Mitsubishi Galant,21,3030,140,Service
+Mitsubishi Lancer,26,2645,120,Service
+Mitsubishi Lancer Evolution VIII,18,3300,270,Service
+Morgan Plus 8,18,2230,188,Truck
+Nissan Altima,23,3000,175,Auto
+Nissan Maxima,21,3240,255,Truck
+Nissan Sentra,27,2520,126,Auto
+Nissan 350Z,20,3188,287,Truck
+Oldsmobile Alero,25,2945,140,Service
+Oldmobile Aurora,18,3800,250,Service
+Panoz Esperante,22,3125,320,Truck
+Pontiac Bonneville,20,3590,205,Service
+Pontiac Grand Am,24,3065,140,Auto
+Pontiac Grand Prix,20,3385,175,Service
+Pontiac Sunfire,24,2605,140,Auto
+Pontiac Vibe,29,2700,130,Auto
+Porsche Boxster,20,2810,225,Service
+Porsche 911 Carrera,17,2910,320,Service
+Porsche 911 Turbo,15,3395,415,Service
+Saab 9-3,20,3175,175,Auto
+Saab 9-5,21,3470,185,Truck
+Saleen S7,10,2750,550,Truck
+Saturn Ion,26,2750,140,Service
+Saturn L-Series,25,2990,135,Service
+Subaru Baja,20,3485,165,Service
+Subaru Impreza,20,2965,165,Truck
+Subaru Legacy,21,3225,165,Auto
+Suzuki Aerio,26,2605,145,Truck
+Toyota Avalon,21,3415,210,Truck
+Toyota Camry,23,3085,157,Service
+Toyota Camry Solara,20,3120,157,Auto
+Toyota Celica,28,2425,140,Auto
+Toyota Corolla,32,2500,130,Auto
+Toyota Echo,34,2035,108,Auto
+Toyota Matriz,30,2680,130,Service
+Totota MR2 Spyder ,25,2195,138,Auto
+Totota Prius,52,2765,98,Service
+Volkswagen New Beetle,24,2815,115,Auto
+Volkswagen Golf,24,2770,115,Auto
+Volkswagen Jetta,24,2890,115,Truck
+Volkswagen Passat,22,3225,170,Auto
+Volvo C70,19,3285,196,Auto
+Volvo S40,22,2865,170,Service
+Volvo S60,21,3145,168,Truck
+Volvo S80,18,3275,197,Auto
+Volvo V70,22,3370,197,Truck
